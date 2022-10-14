@@ -1,0 +1,1376 @@
+{
+  "Uuid": "3d3e1ea7-4a3a-4e05-a583-865357a34332",
+  "IsCustomNode": false,
+  "Description": "",
+  "Name": "SelectMemberAndAnalysis",
+  "ElementResolver": {
+    "ResolutionMap": {}
+  },
+  "Inputs": [],
+  "Outputs": [],
+  "Nodes": [
+    {
+      "ConcreteType": "Dynamo.Nodes.DSModelElementSelection, DSRevitNodesUI",
+      "NodeType": "ExtensionNode",
+      "InstanceId": [
+        "63659372-4f2a-456e-ba9d-967dd8e05ba3-002e544d"
+      ],
+      "Id": "8369dcb045e640c38fa71263d5e13b35",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "b7e2d82cb83744deb0cdf159c689c6b0",
+          "Name": "Element",
+          "Description": "The selected elements.",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "NodeType": "FunctionNode",
+      "FunctionSignature": "Revit.Elements.Element.GetParameterValueByName@string",
+      "Id": "c3582f723b5e4a3a82968d91fdf48536",
+      "Inputs": [
+        {
+          "Id": "f0b7bc94a5f344c2b3c4ea3d1bf23797",
+          "Name": "element",
+          "Description": "Revit.Elements.Element",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "876c34bdc9f54e8482088edcd4c65c92",
+          "Name": "parameterName",
+          "Description": "The name of the parameter whose value you want to obtain.\n\nstring",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "b769caf090f1490c872afa83873ceba3",
+          "Name": "var[]..[]",
+          "Description": "var[]..[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Auto",
+      "Description": "Get the value of one of the element's parameters.\n\nElement.GetParameterValueByName (parameterName: string): var[]..[]"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.CodeBlockNodeModel, DynamoCore",
+      "NodeType": "CodeBlockNode",
+      "Code": "[\n\"Pu\",\n\"Mux\",\n\"Muy\"\n];",
+      "Id": "f477b14bc0ab4e799fa8b03020f6e0b4",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "9dd77aae7b8d49ddbf128ad07114b921",
+          "Name": "",
+          "Description": "Value of expression at line 1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Allows for DesignScript code to be authored directly"
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "NodeType": "PythonScriptNode",
+      "Code": "# Load the Python Standard and DesignScript Libraries\r\nimport sys\r\nimport clr\r\nclr.AddReference('ProtoGeometry')\r\nfrom Autodesk.DesignScript.Geometry import *\r\n\r\nimport csv\r\nfrom dataclasses import dataclass, field, asdict, astuple\r\nfrom typing import List\r\nfrom collections import namedtuple\r\nfrom functools import reduce\r\nfrom functools import partial\r\n# import forallpeople as si ## 단위 변환 관련 패키지(아직 미사용)\r\nimport math\r\n#################################Module For Functional Programing#############################################\r\ncurry = lambda f: lambda a,*args: f(a, *args) if (len(args)) else lambda *args: f(a, *args)\r\n\r\nfilter = curry(filter)\r\nmap = curry(map)\r\n\r\ndef _take(length, iter):\r\n    res = []\r\n    for a in iter:\r\n        res.append(a)\r\n        if len(res) == length:\r\n            return res\r\n        \r\ntake = curry(_take)\r\nreduce = curry(reduce)\r\n\r\ngo = lambda *args: reduce(lambda a,f: f(a), args) ## 함수도 축약 가능 ##\r\n##############################################################################################################\r\n#######################################################################################\r\n    ####### 공통 입력부 #######\r\n#input_path = 'Section Profile.csv'\r\n\r\ninput_dsgnMode = \"LRFD\"\r\n\r\ninput_fy = 344.738 ## 50 ksi\r\ninput_fu = 448.159 ## 65 ksi\r\ninput_E = 199900 ## 29000\r\n\r\n# input_DL = 6.567  ## 휨 검토때\r\n# input_LL = 10.945\r\n# input_length = 10670\r\n\r\ninput_DL = 622.751 ##140 kips ## 압축 검토때\r\ninput_LL = 1868.253 ## 420 kips\r\n\r\n#input_Pu = 1779 ## kN (400 kip)\r\n#input_Mux = 338.954 ## kN*m\r\n#input_Muy = 108.465 ## kN*m\r\n#input_length = 4267 ## 14 ft\r\n\r\n    ####### 휨 입력부 #######\r\ninput_cb_mode = \"Cb고려\"\r\ninput_table_mode = \"continuous\"\r\ninput_brace_idx = 2\r\n\r\n    ####### 압축 입력부 #######\r\ninput_Comp_mode = \"recommended\" ### 압축 유효길이 팩터 테이블 산정 모드\r\ninput_cond = \"d\"  ### 압축 유효길이 팩터 테이블 상 지점 조건\r\ninput_effLength = [4267] ### 압축 유효길이\r\n\r\n    ####### 인장 입력부 #######\r\ninput_dia_bolt=20\r\ninput_length_bolt=228\r\ninput_n_bolt=4\r\ninput_gap_bolt=2\r\n\r\n# input_dia_bolt = input_length_bolt = input_n_bolt = input_gap_bolt = None\r\n\r\n#######################################################################################\r\ndef makeSectionForm(args):\r\n    \r\n    Form = namedtuple('SectionForm', ['ID','shape','h','bf','tw','tf','k'])\r\n    form = \\\r\n        Form(ID=args[0], shape=args[1], \r\n            h=float(args[2]), bf=float(args[3]), \r\n            tw=float(args[4]), tf=float(args[5]), k=float(args[6]))        \r\n    \r\n    return form\r\n\r\ndef setSectionProp(sForm):\r\n\r\n    def defineC():\r\n        if _shape == \"W\" or _shape == \"H\": return 1\r\n        elif _shape == \"C\": return (_h0/2) * (_Iy/_Cw)**0.5\r\n        else: return 1 ## 임시 대처     \r\n    \r\n    \r\n    Prop = namedtuple(\r\n        'SectionProperty', \r\n        ['ID', 'h', 'bf', 'tw', 'tf', 'k', 'shape', 'Area', 'Weight', \r\n         'Ix', 'Sx', 'Zx', 'rx', 'Iy', 'Sy', 'Zy', 'ry', \r\n         'Cw', 'J', 'rts', 'h0', 'Slnd_Flange', 'Slnd_Web', 'C'])\r\n       \r\n    def chkSlenderness(shape, mode):\r\n        if _shape == 'H' or 'W':\r\n            if mode == 'flange':\r\n                if _bf/(2*_tf) < 0.56*(input_E/input_fy)**0.5:\r\n                    return \"nonslender\"\r\n                else:\r\n                    return \"slender\"\r\n\r\n            elif mode == 'web':\r\n                if (_h-2*_k)/_tw < 1.49*(input_E/input_fy)**0.5:\r\n                    return \"nonslender\"\r\n                else:\r\n                    return \"slender\"\r\n            else:\r\n                pass\r\n\r\n        elif _shape == 'BH':\r\n                if mode == 'flange':\r\n                    _kc = min(4/(_h/_tw)**0.5, 0.35)\r\n                    if _bf/(2*_tf) < 0.64*(_kc*input_E/input_fy)**0.5:\r\n                        return \"nonslender\"\r\n                    else:\r\n                        return \"slender\"\r\n\r\n                elif mode == 'web':\r\n                    if (_h-2*_self.k)/_tw < 1.49*(input_E/input_fy)**0.5:\r\n                        return \"nonslender\"\r\n                    else:\r\n                        return \"slender\"\r\n                else:\r\n                    pass\r\n                \r\n    (_ID,_h,_bf,_tw,_tf,_k,_shape) = (sForm.ID,sForm.h,sForm.bf,sForm.tw,sForm.tf,sForm.k,sForm.shape)             \r\n    _Area = 2*_tf*_bf+(_h-2*_tf)*_tw\r\n    _Weight = _Area*77.22/10**6\r\n    _Ix = (2*(_bf*_tf**3/12+_bf*_tf*((_h-2*_tf)/2+_tf/2)**2)+_tw*(_h-2*_tf)**3/12) \r\n    _Sx = _Ix/(_h/2)\r\n    _Zx = _bf*_tf*(_h-_tf)+0.25*(_h-2*_tf)**2*_tw\r\n    _rx = (_Ix/_Area)**0.5\r\n    _Iy = 2*(_tf*(_bf)**3/12)+(_h-2*_tf)*(_tw)**3/12\r\n    _Sy = _Iy/(_bf/2)\r\n    _Zy = 0.5*(_bf)**2*_tf+0.25*(_h-2*_tf)*(_tw)**2\r\n    _ry = (_Iy/_Area)**0.5\r\n    _Cw = (_h-_tf)**2*_bf**3*_tf/24\r\n    _Slnd_Flange = chkSlenderness(_shape, 'flange')\r\n    _Slnd_Web = chkSlenderness(_shape, 'web')\r\n    (_J,_rts,_h0,_C) = ((2*_bf*_tf**3+(_h-_tf)*_tw**3)/3, ((_Iy*_Cw)**0.5/_Sx)**0.5, _h-_tf, defineC()) \r\n    \r\n    \r\n    prop = Prop(\r\n        ID= _ID, h= _h, bf= _bf, tw= _tw, tf= _tf, k= _k, shape= _shape, Area= _Area, Weight= _Weight,\r\n        Ix= _Ix, Sx= _Sx, Zx= _Zx, rx= _rx, Iy= _Iy, Sy= _Sy, Zy= _Zy, ry= _ry,\r\n        Cw= _Cw, J= _J, rts= _rts, h0= _h0, Slnd_Flange= _Slnd_Flange, Slnd_Web= _Slnd_Web, C= _C)\r\n    \r\n    return prop\r\n\r\ndef setMaterialProp(_fy, _fu, _E):\r\n    Prop = namedtuple('MaterialProperty', ['fy', 'fu', 'E'])\r\n    prop = Prop(fy=_fy, fu=_fu, E=_E)\r\n    \r\n    return prop\r\n\r\ndef setRequiredStrength(_DL, _LL, _Pu, _Mux, _Muy):\r\n    def calcPu(_DL, _LL): ## 추후 구현\r\n        pass\r\n    def calcMu(_DL, _LL): ## 추후 구현\r\n        pass\r\n    _Load = namedtuple('LoadInform', ['DL', 'LL'])\r\n    RqStr = namedtuple('requiredStrength', ['Load', 'Pu', 'Mux', 'Muy'])\r\n    \r\n    return RqStr(Load= _Load(DL=_DL, LL=_LL), Pu=_Pu, Mux=_Mux, Muy=_Muy)\r\n\r\ndef setDesignBase(_dsgnMode, _rqStr, _length, _useMode):\r\n    \r\n    Base = namedtuple('DesignBase', ['DL', 'LL', 'length', 'Pr', 'Mrx', 'Mry'])\r\n\r\n    def calcRequired(_dsgnMode):\r\n        _DL = _rqStr.Load.DL\r\n        _LL = _rqStr.Load.LL\r\n        def _calcStr():\r\n            if _dsgnMode == \"LRFD\":\r\n                result = 1.2*_DL + 1.6*_LL\r\n            elif _dsgnMode == \"ASD\":\r\n                result = _DL + _LL\r\n            else:\r\n                result = \"check the DesignMode\"\r\n            return result\r\n        \r\n        def _calcMoment():\r\n            result = ((_calcStr() * _length**2) / 8) / 1000**2\r\n            return result\r\n\r\n        return (_calcStr(), _calcMoment())\r\n    \r\n    if _useMode == \"useLoad\":\r\n        base = Base(\r\n            DL=_rqStr.Load.DL, LL=_rqStr.Load.LL,\r\n            length=_length, Pr=_calcRequired(_dsgnMode)[0], Mrx=calcRequired(_dsgnMode)[1], Mry=calcRequired(_dsgnMode)[1])\r\n    elif _useMode == \"usePuMu\":\r\n        base = Base(\r\n            DL=_rqStr.Load.DL, LL=_rqStr.Load.LL,\r\n            length=_length, Pr=_rqStr.Pu, Mrx=_rqStr.Mux, Mry=_rqStr.Muy)\r\n    \r\n    return base\r\n\r\n\r\ndef setFlexureBase(cb_mode, table_mode, _brace_idx):\r\n    Base = namedtuple('SubBase_flx', ['brace_idx', 'Cb'])\r\n\r\n    def findCb():\r\n        _none = {\r\n            \"1p\": [[1.32]],\r\n            \"2p\": [[1.14]],\r\n            \"3p\": [[1.14]],\r\n            \"continuous\": [[1.14]] }\r\n\r\n        _atLoad = {\r\n            \"1p\": [1.67, 1.67],\r\n            \"2p\": [1.67, 1.00, 1.67],\r\n            \"3p\": [1.67, 1.11, 1.11, 1.67],\r\n            \"continuous\": \r\n                [[1.30, 1.30], \r\n                [1.45, 1.01, 1.45], \r\n                [1.52, 1.06, 1.06, 1.52], \r\n                [1.56, 1.12, 1.00, 1.12, 1.56]] }\r\n        if cb_mode == \"Cb고려\":\r\n            if _brace_idx == 0:\r\n                result = _none[table_mode][0]#[_brace_idx]\r\n            else:\r\n                if table_mode == \"continuous\":\r\n                    result = _atLoad[table_mode][_brace_idx-1]\r\n                else:\r\n                    result = _atLoad[table_mode]\r\n        elif cb_mode == \"Cb미고려\":\r\n            result = [ 1.00 ]\r\n\r\n        return result\r\n    \r\n    base = Base(brace_idx= _brace_idx, Cb=findCb())    \r\n    return base\r\n\r\ndef setCompressureBase(mode, cond, *_length):\r\n    Base = namedtuple('SubBase_Comp', ['unbracedLength_x', 'unbracedLength_y', 'factorK'])\r\n    \r\n    def EffectiveLength():\r\n        \r\n        if len(_length) == 1:\r\n            _unbracedLength_x = _length[0]\r\n            _unbracedLength_y = _length[0]\r\n        elif len(_length) == 2:\r\n            _unbracedLength_x = _length[0]\r\n            _unbracedLength_y = _length[1]\r\n        \r\n        EffectiveLength = [_unbracedLength_x, _unbracedLength_y]\r\n        return EffectiveLength\r\n    \r\n    def factorK():\r\n        _factorTable = {\r\n            \"a\": (0.5, 0.65),\r\n            \"b\": (0.7, 0.80),\r\n            \"c\": (1.0, 1.2),\r\n            \"d\": (1.0, 1.0),\r\n            \"e\": (2.0, 2.1),\r\n            \"f\": (2.0, 2.0),\r\n        }\r\n        \r\n        if mode == \"theoretical\":\r\n            factorK = _factorTable[cond][0]\r\n            \r\n        elif mode == \"recommended\":\r\n            factorK = _factorTable[cond][1]\r\n            \r\n        else:\r\n            factorK = 'Please select mode(\"theoretical\" or \"recommended\")'\r\n\r\n        return factorK\r\n    \r\n    base = Base(unbracedLength_x= EffectiveLength()[0], unbracedLength_y= EffectiveLength()[1], factorK= factorK())    \r\n    return base\r\n\r\ndef setTensileBase(_dia_bolt, _len_bolt, _n_bolt, _gap_bolt):\r\n    \r\n    Base = namedtuple('SubBase_Tensile', ['dia_bolt', 'length_bolt', 'n_bolt', 'gap_bolt'])\r\n    base = Base(dia_bolt=_dia_bolt, length_bolt=_len_bolt, n_bolt=_n_bolt, gap_bolt=_gap_bolt)\r\n    \r\n    return base\r\n\r\n\r\ndef setCombinedBase(_cBase, _fBase):\r\n    Base = namedtuple('SubBase_Combined', ['cBase', 'fBase'])\r\n    return Base(cBase=_cBase, fBase=_fBase)\r\n\r\ndef checkFlexure(_dsgnMode, _sProp, _mProp, _dBase, _subBase):\r\n    ResultForm = namedtuple('flexResult', ['Mcx', 'Mcy'])\r\n    \r\n    def findLp():\r\n        return 1.76 * _sProp.ry * (_mProp.E/_mProp.fy)**0.5\r\n    \r\n    def findLr():\r\n        return 1.95*_sProp.rts*_mProp.E/(0.7*_mProp.fy)*(_sProp.J/(_sProp.Sx*(_sProp.h0))+((_sProp.J/(_sProp.Sx*(_sProp.h0)))**2+6.76*(0.7*_mProp.fy/_mProp.E)**2)**0.5)**0.5\r\n    \r\n    def findMp():\r\n        ### for Strong Axis ###\r\n        Mp_x = _mProp.fy * _sProp.Zx\r\n        ### for Weak Axis ###\r\n        Mp_y = min([(_mProp.fy * _sProp.Zy), (1.6*_mProp.fy*_sProp.Sy)])\r\n        \r\n        return {\"Mp_x\": Mp_x, \"Mp_y\": Mp_y}\r\n    \r\n    def findMn(): ### for Strong Axis ###\r\n        (Mp,Lp,Lr,Lb) = (findMp()[\"Mp_x\"], findLp(), findLr(), _dBase.length/(_subBase.brace_idx+1))\r\n        \r\n        if Lb <= Lp:\r\n            Mn = Mp\r\n        elif Lp < Lb <= Lr:\r\n            Mn = min(map(lambda x: x * (Mp-(Mp-0.7*_mProp.fy*_sProp.Sx)*((Lb-Lp) / (Lr-Lp))), _subBase.Cb))\r\n        elif Lb > Lr:\r\n            Fcr = min(map(lambda x: (x * (math.pi**2 * _mProp.E)/((Lb/_sProp.rts)**2)) * (1 + 0.078*(((_sProp.J*_sProp.C)/(_sProp.Sx*_sProp.h0))*(Lb/_sProp.rts)**2))**0.5 ,_subBase.Cb))\r\n            Mn = min((Fcr)*_sProp.Sx, Mp)\r\n        \r\n        return Mn / 1000**2\r\n    \r\n    def findMn_weekAxis():\r\n        Mn = findMp()[\"Mp_y\"] ## 약축 휨 Buckling 무시: 해당 부재 많지 않고, 적용하는 경우에도 강도 감소 크지 않음. Yielding 설계\r\n        return Mn / 1000**2\r\n    \r\n    \r\n    def calcNominal(_Mn):\r\n        if _dsgnMode == \"LRFD\":\r\n            result = 0.90 * _Mn\r\n        elif _dsgnMode == \"ASD\":\r\n            result = _Mn / 1.67\r\n        else:\r\n            result = \"check the DesignMode\"\r\n            \r\n        return result\r\n        \r\n    return ResultForm(Mcx=calcNominal(findMn()), Mcy=calcNominal(findMn_weekAxis()))\r\n\r\ndef checkCompressure(_dsgnMode, _sProp, _mProp, _dBase, _subBase):\r\n    \r\n    def find_Lc():\r\n        Lc_x = _subBase.factorK * _subBase.unbracedLength_x\r\n        Lc_y = _subBase.factorK * _subBase.unbracedLength_y\r\n        return (Lc_x, Lc_y)\r\n\r\n    def find_r(): ## 회전 반경\r\n        rx = _sProp.rx\r\n        ry = _sProp.ry\r\n        return (rx, ry)\r\n\r\n    def find_Lc_r(): ## 세장비 (effective slenderness ratio)\r\n        Lc_rx = find_Lc()[0]/find_r()[0]\r\n        Lc_ry = find_Lc()[1]/find_r()[1]\r\n\r\n        def chk_IsLcExceed():\r\n            if Lc_rx < 200 and Lc_ry < 200:\r\n                return (Lc_rx, Lc_ry)\r\n            else:\r\n                return (Lc_rx, Lc_ry, \"ratio exceed 200\")\r\n\r\n        return chk_IsLcExceed()\r\n\r\n    def find_Fe(): ## 탄성 좌굴 응력\r\n        r = find_r()\r\n        Lc_rx = find_Lc_r()[0]\r\n        Lc_ry = find_Lc_r()[1]\r\n\r\n        Fe_x = math.pi**2*_mProp.E/Lc_rx**2\r\n        Fe_y = math.pi**2*_mProp.E/Lc_ry**2\r\n\r\n        return (Fe_x, Fe_y)\r\n\r\n    def find_Fcr(): ## 좌굴임계응력\r\n\r\n        Fe_x = find_Fe()[0]\r\n        Fe_y = find_Fe()[1]\r\n\r\n        if find_Lc_r()[0] > 4.71*(_mProp.E/_mProp.fy)**0.5:\r\n            Fcr_x = 0.877*Fe_x\r\n        else:\r\n            Fcr_x = 0.658**(_mProp.fy/Fe_x)*_mProp.fy\r\n\r\n        if find_Lc_r()[1] > 4.71*(_mProp.E/_mProp.fy)**0.5:\r\n            Fcr_y = 0.877*Fe_y\r\n        else:\r\n            Fcr_y = 0.658**(_mProp.fy/Fe_y)*_mProp.fy\r\n\r\n        return min(Fcr_x, Fcr_y)\r\n    \r\n    def find_slender_web(): \r\n\r\n        if _sProp.shape == \"H\" or \"W\" or \"BH\":\r\n            c1 = 0.18\r\n        else:\r\n            c1 = 0.22   \r\n\r\n        c2 = (1-(1-4*c1)**0.5)/(2*c1)\r\n        h = _sProp.h-(2*_sProp.tf)\r\n        λ = _sProp.h/_sProp.tw\r\n        λr = 1.49*(_mProp.E/_mProp.fy)**0.5\r\n        Fel = (c2*λr/λ)**2 * _mProp.fy\r\n\r\n        if λ<=λr*(_mProp.fy/find_Fcr())**0.5:\r\n            he_effh = _sProp.h\r\n        else:\r\n            he_effh = _sProp.h*(1-c1*(Fel/find_Fcr())**0.5)*(Fel/find_Fcr())**0.5\r\n\r\n        return he_effh\r\n\r\n\r\n    def find_slender_flange(): ###### slender 부재일경우\r\n        shape = _sProp.shape\r\n\r\n        kc = 4/(_sProp.h/_sProp.tw)**0.5\r\n        λ = _sProp.bf/(2*_sProp.tf)\r\n        b = _sProp.bf/2\r\n\r\n\r\n        if shape == \"H\" or \"W\" or \"BH\":\r\n            if shape == \"H\" or \"W\":\r\n                c1 = 0.18\r\n                λr = 0.56*(kc*_mProp.E/_mProp.fy)**0.5\r\n\r\n            elif Shape == \"BH\":\r\n                c1 = 0.18\r\n                λr = 0.64*(kc*_mProp.E/_mProp.fy)**0.5\r\n\r\n        else:\r\n            c1 = 0.22\r\n\r\n        c2 = (1-(1-4*c1)**0.5)/(2*c1)\r\n        Fel = (c2*λr/λ)**2 * _mProp.fy\r\n\r\n        if λ<=λr*(_mProp.fy/find_Fcr())**0.5:\r\n            be_effb = b\r\n\r\n        else:\r\n            be_effb = b*(1-c1*(Fel/find_Fcr())**0.5)*(Fel/find_Fcr())**0.5\r\n\r\n        return be_effb\r\n\r\n    def find_Ae():\r\n        Slnd_Web = _sProp.Slnd_Web\r\n        Slnd_Flange = _sProp.Slnd_Flange\r\n        he_effh = find_slender_web()\r\n        be_effb = find_slender_flange()\r\n\r\n        if Slnd_Web == \"nonslender\" and Slnd_Flange == \"nonslender\":\r\n            Ae = _sProp.Area\r\n        else:\r\n            Ae = he_effh*_sProp.tw + 2*_sProp.tf*(2*be_effb)\r\n        return Ae\r\n    \r\n    def find_Area_ratio():\r\n        Area_ratio = find_Ae()/_sProp.Area\r\n        return Area_ratio   \r\n\r\n    def find_Pn(): ## 공칭 강도 (nominal compressive strength)\r\n        return find_Fcr() * find_Ae() / 1000\r\n        \r\n    def calcNominal():\r\n        if _dsgnMode == \"LRFD\":\r\n            result = 0.90 * find_Pn()\r\n        elif _dsgnMode == \"ASD\":\r\n            result = find_Pn() / 1.67\r\n        else:\r\n            result = \"check the DesignMode\"\r\n            \r\n        return result\r\n       \r\n    return calcNominal()\r\n\r\ndef checkTensile(_dsgnMode, _sProp, _mProp, _dBase, _subBase):\r\n    ( d, bf, tw, tf, Ag ) = ( _sProp.h, _sProp.bf, _sProp.tw, _sProp.tf, _sProp.Area )\r\n    if all([_subBase.dia_bolt, _subBase.length_bolt, _subBase.n_bolt, _subBase.gap_bolt]):\r\n        ( db, boltN, length_bolt, gap ) = ( _subBase.dia_bolt, _subBase.n_bolt, _subBase.length_bolt, _subBase.gap_bolt )\r\n    else: pass\r\n    \r\n    def findAn():\r\n        An = Ag - boltN*(db + gap)*tf\r\n        return An\r\n    \r\n    def findU_forShealag():\r\n        l = length_bolt\r\n        x = (bf*tf*tf/2 + (d/2 - tf)*tw*((d/2-tf)/2 + tf)) / (bf*tf + (d/2 - tf)*tw)\r\n        u1 = (2*bf*tf) / Ag\r\n        \r\n        u2 = 1 - (x/l)\r\n        \r\n        if boltN >= 3:\r\n            if bf < 2/3*d:\r\n                u3 = 0.85\r\n            else:\r\n                u3 = 0.9\r\n        else:\r\n            u3 = 0\r\n        \r\n        return max(u1, u2, u3)\r\n    \r\n    def calc_Ae():\r\n        U = findU_forShealag()\r\n        return findAn()*U\r\n    \r\n    def find_Pn():\r\n        ( Fy, Fu ) = ( _mProp.fy, _mProp.fu )\r\n        Result = namedtuple(\"Result\",[\"Fy_Ag\", \"Fu_Ae\"])\r\n        unitModif = 1000**1\r\n        \r\n        if all([_subBase.dia_bolt, _subBase.length_bolt, _subBase.n_bolt, _subBase.gap_bolt]):\r\n            Ae = calc_Ae() /unitModif\r\n            result = Result(Fy_Ag=Fy*Ag, Fu_Ae=Fu*Ae)\r\n            return result\r\n        else:\r\n            Ae = 0.75 * Ag /unitModif\r\n            result = Result(Fy_Ag=Fy*Ag, Fu_Ae=Fu*Ae)\r\n            return result\r\n\r\n    def calcNominal_tensile():\r\n        ( Φ1, Φ2 ) = ( 0.9, 0.75 )\r\n        ( Ω1, Ω2 ) = ( 1.67, 2.00 )\r\n        \r\n        if _dsgnMode == \"LRFD\":\r\n            result = min(Φ1 * find_Pn().Fy_Ag, Φ2*find_Pn().Fu_Ae)\r\n        elif _dsgnMode == \"ASD\":\r\n            result = min(find_Pn().Fy_Ag/Ω1, Φ2*find_Pn().Fu_Ae/Ω2)\r\n        else:\r\n            result = \"check the DesignMode\"\r\n            \r\n        return result\r\n        \r\n    return calcNominal_tensile()\r\n\r\ndef checkCombined(_dsgnMode, _sProp, _mProp, _dBase, _subBase, _fCheck, _cCheck):\r\n    ( Pr, Mrx, Mry ) = ( _dBase.Pr, _dBase.Mrx, _dBase.Mry )\r\n    Pc = _cCheck(_dsgnMode, _sProp, _mProp, _dBase, _subBase.cBase)\r\n    \r\n    def findMcx():\r\n        return _fCheck(_dsgnMode, _sProp, _mProp, _dBase, _subBase.fBase).Mcx\r\n        \r\n    \r\n    def findMcy():\r\n        return _fCheck(_dsgnMode, _sProp, _mProp, _dBase, _subBase.fBase).Mcy \r\n    ( Mcx, Mcy ) =  ( findMcx(), findMcy() )\r\n    def calcRatio_combined():\r\n        ( Mcx, Mcy ) =  ( findMcx(), findMcy() )\r\n        if (Pr/Pc) >= 0.2:\r\n            res = (Pr/Pc) + (8/9)*((Mrx/Mcx) + (Mry/Mcy))\r\n        elif (Pr/Pc) < 0.2:\r\n            res = (Pr/(2*Pc)) + ((Mrx/Mcx) + (Mry/Mcy))\r\n        else:\r\n            pass\r\n            \r\n        return res\r\n    \r\n    return calcRatio_combined()\r\n\r\ndef checkDesignResult(_dsgnMode, _sProp, _mProp, _dBase, _subBaseColl, _subCheckColl):\r\n    \r\n    ( Pr, Mrx, Mry ) = ( _dBase.Pr, _dBase.Mrx, _dBase.Mry )\r\n    \r\n    ( fCheck, fBase ) = ( _subCheckColl.fCheck, _subBaseColl.fBase )\r\n    ( cCheck, cBase ) = ( _subCheckColl.cCheck, _subBaseColl.cBase )\r\n    ( tCheck, tBase ) = ( _subCheckColl.tCheck, _subBaseColl.tBase )\r\n    ( comCheck, comBase ) = ( _subCheckColl.comCheck, _subBaseColl.comBase )\r\n    \r\n    def findDesignResult(_dsgnMode, _sProp, _mProp, _dBase, _subBase, _subCheck):\r\n        FormResult = namedtuple(\"resForm\", \"checkName, ID, NomStr, ReqStr, Result\")\r\n        checkName = _subCheck.__name__\r\n        if checkName == \"checkFlexure\": \r\n            nomStr = _subCheck(_dsgnMode,_sProp, _mProp, _dBase, _subBase)\r\n            if nomStr.Mcx > Mrx:\r\n                return FormResult(\r\n                            checkName = _subCheck.__name__,\r\n                            ID = _sProp.ID, \r\n                            NomStr = nomStr.Mcx, \r\n                            ReqStr = Mrx,\r\n                            Result = \"O.K.\")\r\n            else:\r\n                return FormResult(\r\n                            checkName = _subCheck.__name__,\r\n                            ID = _sProp.ID, \r\n                            NomStr = nomStr.Mcx, \r\n                            ReqStr = Mrx,\r\n                            Result = \"N.G.\")\r\n            \r\n        elif checkName == \"checkCombined\":\r\n            nomStr = _subCheck(_dsgnMode,_sProp, _mProp, _dBase, _subBase, fCheck, cCheck)\r\n            reqStr = 1.0\r\n            if nomStr <= reqStr:\r\n                return FormResult(\r\n                            checkName = _subCheck.__name__,\r\n                            ID = _sProp.ID, \r\n                            NomStr = nomStr, \r\n                            ReqStr = reqStr,\r\n                            Result = \"O.K.\")\r\n            else:\r\n                return FormResult(\r\n                            checkName = _subCheck.__name__,\r\n                            ID = _sProp.ID, \r\n                            NomStr = nomStr, \r\n                            ReqStr = reqStr,\r\n                            Result = \"N.G.\")\r\n            \r\n        else:\r\n            nomStr = _subCheck(_dsgnMode,_sProp, _mProp, _dBase, _subBase)\r\n            if nomStr > Pr:\r\n                return FormResult(\r\n                            checkName = _subCheck.__name__,\r\n                            ID = _sProp.ID, \r\n                            NomStr = nomStr, \r\n                            ReqStr = Pr,\r\n                            Result = \"O.K.\")\r\n            else:\r\n                return FormResult(\r\n                            checkName = _subCheck.__name__,\r\n                            ID = _sProp.ID, \r\n                            NomStr = nomStr, \r\n                            ReqStr = Pr,\r\n                            Result = \"N.G.\")\r\n    \r\n\r\n    result_flx = findDesignResult(_dsgnMode, _sProp, _mProp, _dBase, fBase, fCheck)\r\n    result_comp = findDesignResult(_dsgnMode, _sProp, _mProp, _dBase, cBase, cCheck)\r\n    result_tensile = findDesignResult(_dsgnMode, _sProp, _mProp, _dBase, tBase, tCheck)\r\n    result_combined = findDesignResult(_dsgnMode, _sProp, _mProp, _dBase, comBase, comCheck)\r\n    \r\n    FinalForm = namedtuple(\"FinalForm\", \"result_flx, result_comp, result_tensile, result_combined\")\r\n    \r\n    return FinalForm(result_flx=result_flx, result_comp=result_comp, result_tensile=result_tensile, result_combined=result_combined)\r\n\r\n\r\n## 결과 출력용 함수 ## \r\ndef showResult(ress, _checkMode):\r\n    def mkResult(res):\r\n        if res.NomStr > res.ReqStr: ineqSign = '>'\r\n        else: ineqSign = '<'\r\n        \r\n        return f\"for {res.checkName},,, {res.ID} - nominal: '{res.NomStr:.2f}'  {ineqSign} required: '{res.ReqStr:.2f}'  -> {res.Result}\"\r\n    ### 결과에 단위 포함 출력은 차주 구현 예정\r\n    \r\n    if _checkMode == \"all\":\r\n        result = list(map(mkResult, ress))\r\n        \r\n    else:\r\n        result = list(map(mkResult,\r\n                        filter(lambda x: x.checkName == _checkMode, ress)))\r\n    return result\r\n\r\n\r\n\r\n\r\n\r\n\r\n# The inputs to this node will be stored as a list in the IN variables.\r\ndataEnteringNode = IN\r\ninput_length = IN[0]\r\ninput_Pu = IN[1][0]\r\ninput_Mux = IN[1][1]\r\ninput_Muy = IN[1][2]\r\ninput_sectInform = IN[2]\r\n# Place your code below this line\r\n\r\ntargetSection = makeSectionForm(input_sectInform)\r\n\r\nsProp = setSectionProp(targetSection)\r\n\r\nmProp = setMaterialProp(input_fy, input_fu, input_E)\r\n\r\nrqStr = setRequiredStrength(input_DL, input_LL, input_Pu, input_Mux, input_Muy)\r\ndBase = setDesignBase(input_dsgnMode, rqStr, input_length, \"usePuMu\")\r\n\r\nmkSubBaseColl = namedtuple('subBaseColl', 'fBase, cBase, tBase, comBase')\r\n\r\nfBase = setFlexureBase(input_cb_mode, input_table_mode, input_brace_idx)\r\ncBase = setCompressureBase(input_Comp_mode, input_cond, *input_effLength)\r\ntBase = setTensileBase(input_dia_bolt, input_length_bolt, input_n_bolt, input_gap_bolt)\r\ncomBase = setCombinedBase(cBase, fBase)\r\n\r\nsubBaseColl = mkSubBaseColl(fBase=fBase, cBase=cBase, tBase=tBase, comBase=comBase)\r\n\r\nmkSubCheckColl = namedtuple('subCheckColl', 'fCheck, cCheck, tCheck, comCheck')\r\nsubCheckColl = mkSubCheckColl(fCheck=checkFlexure, cCheck=checkCompressure, tCheck=checkTensile, comCheck=checkCombined)\r\n\r\n_res = checkDesignResult(input_dsgnMode, sProp, mProp, dBase, subBaseColl, subCheckColl)\r\n\r\nres = showResult(_res, 'all')\r\n# Assign your output to the OUT variable.\r\nOUT = res",
+      "Engine": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "7aa60df417774c83a1155b7c79e77678",
+      "Inputs": [
+        {
+          "Id": "d344b612298b45ec8a8f6aacf415f664",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "f647a880ccf4405b9dfe95acbe7ad9a4",
+          "Name": "IN[1]",
+          "Description": "Input #1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "99ae8375b5c640d6a5152dcca09d7ffd",
+          "Name": "IN[2]",
+          "Description": "Input #2",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "bba42ffe905e466e8ab254c79fe3df86",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Runs an embedded Python script."
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "NodeType": "FunctionNode",
+      "FunctionSignature": "Revit.Elements.Element.GetParameterValueByName@string",
+      "Id": "ccf39de68fd749129f6bd707829644fb",
+      "Inputs": [
+        {
+          "Id": "c630f4bd4e754219984a1c55e79f02c3",
+          "Name": "element",
+          "Description": "Revit.Elements.Element",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "1c52afcb5389499aa1960d065f30dd66",
+          "Name": "parameterName",
+          "Description": "The name of the parameter whose value you want to obtain.\n\nstring",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "bdd303f0da10477b9e0c70693aaf8acd",
+          "Name": "var[]..[]",
+          "Description": "var[]..[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Auto",
+      "Description": "Get the value of one of the element's parameters.\n\nElement.GetParameterValueByName (parameterName: string): var[]..[]"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.CodeBlockNodeModel, DynamoCore",
+      "NodeType": "CodeBlockNode",
+      "Code": "[\n\"Base Level\",\n\"Top Level\"\n];",
+      "Id": "893f3a0e363b42a58baf783947ab4390",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "cc90cc24e3854a0badcbd7cb01d1e45b",
+          "Name": "",
+          "Description": "Value of expression at line 1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Allows for DesignScript code to be authored directly"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.CodeBlockNodeModel, DynamoCore",
+      "NodeType": "CodeBlockNode",
+      "Code": "[\n\"Base Offset\",\n\"Top Offset\"\n];",
+      "Id": "849dc78ac6014bbeb501798e8380bb38",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "51ec1ce500624768abc8f628924e79d7",
+          "Name": "",
+          "Description": "Value of expression at line 1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Allows for DesignScript code to be authored directly"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "NodeType": "FunctionNode",
+      "FunctionSignature": "Revit.Elements.Element.GetParameterValueByName@string",
+      "Id": "1db652a4b76a4095b737ea0fded6b842",
+      "Inputs": [
+        {
+          "Id": "0f1a01757c7b4bb38ea8274090180847",
+          "Name": "element",
+          "Description": "Revit.Elements.Element",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "7722e54f15c24554b2bd4f87e85ecbaf",
+          "Name": "parameterName",
+          "Description": "The name of the parameter whose value you want to obtain.\n\nstring",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "53cdb9e590164006b203baac335c1b34",
+          "Name": "var[]..[]",
+          "Description": "var[]..[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Auto",
+      "Description": "Get the value of one of the element's parameters.\n\nElement.GetParameterValueByName (parameterName: string): var[]..[]"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "NodeType": "FunctionNode",
+      "FunctionSignature": "Revit.Elements.Level.Elevation",
+      "Id": "9486f7573baf427a82931c512d06ad22",
+      "Inputs": [
+        {
+          "Id": "4d8f2bad038241f2b3b15393f8180bc3",
+          "Name": "level",
+          "Description": "Revit.Elements.Level",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "4c231a973aac4c6ea87cb3f2946a5b36",
+          "Name": "double",
+          "Description": "double",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Auto",
+      "Description": "The elevation of the level above ground level\n\nLevel.Elevation: double"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "NodeType": "FunctionNode",
+      "FunctionSignature": "+@var[]..[],var[]..[]",
+      "Id": "45a752316f3d45cf9a8bf0b6b6621956",
+      "Inputs": [
+        {
+          "Id": "68a5c8240c284105a4c8c7779fdd43b2",
+          "Name": "x",
+          "Description": "Integer value, double value or string\n\nvar[]..[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "016fc2acd23d49eabb58588e39ed47e3",
+          "Name": "y",
+          "Description": "Integer value, double value or string\n\nvar[]..[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "47b3ab202c89463082b134482d43886f",
+          "Name": "var",
+          "Description": "The sum of two input numbers, or the concatenation of two strings",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Auto",
+      "Description": "Returns addition of x and y\n\n+ (x: var[]..[], y: var[]..[]): var[]..[]"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "NodeType": "FunctionNode",
+      "FunctionSignature": "DSCore.List.LastItem@var[]..[]",
+      "Id": "775b5844dbbf4b65aea3222538faae20",
+      "Inputs": [
+        {
+          "Id": "a5de5c7eb95544bb921f503d7c5f847d",
+          "Name": "list",
+          "Description": "List to get the last item of\n\nvar[]..[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "8a5587da1e814b0082115ec96618c16e",
+          "Name": "item",
+          "Description": "Last item in the list",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Auto",
+      "Description": "Retrieves the last item in a list.\n\nList.LastItem (list: var[]..[]): var[]..[]"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "NodeType": "FunctionNode",
+      "FunctionSignature": "DSCore.List.FirstItem@var[]..[]",
+      "Id": "c32fb6d53f7f4520ab5b367c99b7f316",
+      "Inputs": [
+        {
+          "Id": "100537681e824e7ebfd227a5928a316d",
+          "Name": "list",
+          "Description": "List to get the first item from.\n\nvar[]..[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "8901e8233b754c378153a2d35a88ad7c",
+          "Name": "item",
+          "Description": "First item in the list.",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Auto",
+      "Description": "Returns the first item in a list.\n\nList.FirstItem (list: var[]..[]): var[]..[]"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.CodeBlockNodeModel, DynamoCore",
+      "NodeType": "CodeBlockNode",
+      "Code": "_el;",
+      "Id": "e5cf4c924d1d44ac81432857afd4d3cd",
+      "Inputs": [
+        {
+          "Id": "478fb5bf80114ef590ea9e52ebb43fb6",
+          "Name": "_el",
+          "Description": "_el",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "700b06ced36e42239c53782370a4f356",
+          "Name": "",
+          "Description": "Value of expression at line 1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Allows for DesignScript code to be authored directly"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "NodeType": "FunctionNode",
+      "FunctionSignature": "-@var[]..[],var[]..[]",
+      "Id": "6c2111118a11402783962f125c2bd71b",
+      "Inputs": [
+        {
+          "Id": "7b7e4beedf6d4b1fb03232e031b69254",
+          "Name": "x",
+          "Description": "Integer or double value\n\nvar[]..[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "11d25d9e57a4489e979d093a4ae07b11",
+          "Name": "y",
+          "Description": "Integer or double value\n\nvar[]..[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "22ad684b854e44a79030e07be27d9302",
+          "Name": "number",
+          "Description": "Result of the y input subtracted from the x input",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Auto",
+      "Description": "Returns subtraction of x minus y\n\n- (x: var[]..[], y: var[]..[]): var[]..[]"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "NodeType": "FunctionNode",
+      "FunctionSignature": "Revit.Elements.Element.ElementType",
+      "Id": "1dce38102670476dac3f8a8e8f802d5a",
+      "Inputs": [
+        {
+          "Id": "c29b0626b29845ebbb36abf43d4e8722",
+          "Name": "element",
+          "Description": "Revit.Elements.Element",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "b4867482916f46c381e73c792d9fd81d",
+          "Name": "ElementType",
+          "Description": "Element Type or Null.",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Auto",
+      "Description": "Returns the ElementType for this Element. Returns null if the Element cannot have an ElementType assigned.\n\nElement.ElementType: ElementType"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "NodeType": "FunctionNode",
+      "FunctionSignature": "Revit.Elements.Element.GetParameterValueByName@string",
+      "Id": "61557db81bf747db96734f34b82ec6b9",
+      "Inputs": [
+        {
+          "Id": "fe88f7c269e246b6a7ba4b79effa2f7e",
+          "Name": "element",
+          "Description": "Revit.Elements.Element",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "18d21758a2f64ce4bb5cb762ada32037",
+          "Name": "parameterName",
+          "Description": "The name of the parameter whose value you want to obtain.\n\nstring",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "e22cd73342ae44adb392f6fe6fe531e9",
+          "Name": "var[]..[]",
+          "Description": "var[]..[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Auto",
+      "Description": "Get the value of one of the element's parameters.\n\nElement.GetParameterValueByName (parameterName: string): var[]..[]"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.CodeBlockNodeModel, DynamoCore",
+      "NodeType": "CodeBlockNode",
+      "Code": "[\n\"H\",\n\"B\",\n\"tw\",\n\"tf\",\n\"r\"\n];",
+      "Id": "c4ac33f928b0414c9f382c37a1d9ecd5",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "505e9cecb9844fa790592ca4cd7fa562",
+          "Name": "",
+          "Description": "Value of expression at line 1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Allows for DesignScript code to be authored directly"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "NodeType": "FunctionNode",
+      "FunctionSignature": "Revit.Elements.Element.Name",
+      "Id": "836aa83161e6463f8e0291ff95ec2f31",
+      "Inputs": [
+        {
+          "Id": "05830e92a1254e4da64ea8c476975308",
+          "Name": "element",
+          "Description": "Revit.Elements.Element",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "eddf789f609142d88166187555014658",
+          "Name": "string",
+          "Description": "string",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Auto",
+      "Description": "Get the Name of the Element\n\nElement.Name: string"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSVarArgFunction, DynamoCore",
+      "FunctionSignature": "DSCore.String.Split@string,string[]",
+      "FunctionType": "VariableArgument",
+      "NodeType": "FunctionNode",
+      "Id": "12d434872914419f8cd5384b0757358b",
+      "Inputs": [
+        {
+          "Id": "be5f52a1bd9a4262801a5985b8058f71",
+          "Name": "string",
+          "Description": "String to split up\n\nstring",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "b46f0456bb404fc996c111ca2b57253b",
+          "Name": "separator0",
+          "Description": "Strings that, if present, determine the end and start of a split.\n\nstring[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "c01a79cc723b4bf392ab37ca37780b38",
+          "Name": "strings",
+          "Description": "List of strings made from the input string",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Auto",
+      "Description": "Divides a single string into a list of strings, with divisions determined by the given separator strings.\n\nString.Split (string: string, separators: string[]): string[]"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.CodeBlockNodeModel, DynamoCore",
+      "NodeType": "CodeBlockNode",
+      "Code": "\"_\";",
+      "Id": "5f99322cb3984ca1bc985c964749d5a8",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "502458b004a545a5940592e0f90239c3",
+          "Name": "",
+          "Description": "Value of expression at line 1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Allows for DesignScript code to be authored directly"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "NodeType": "FunctionNode",
+      "FunctionSignature": "DSCore.List.LastItem@var[]..[]",
+      "Id": "154d373ab0c7437588614db046f04c00",
+      "Inputs": [
+        {
+          "Id": "0b8724f61d2e4be6ab8d8a30f3dfe9ab",
+          "Name": "list",
+          "Description": "List to get the last item of\n\nvar[]..[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "8e103f74946c4a9087a21bb3830b72de",
+          "Name": "item",
+          "Description": "Last item in the list",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Auto",
+      "Description": "Retrieves the last item in a list.\n\nList.LastItem (list: var[]..[]): var[]..[]"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSVarArgFunction, DynamoCore",
+      "FunctionSignature": "DSCore.String.Split@string,string[]",
+      "FunctionType": "VariableArgument",
+      "NodeType": "FunctionNode",
+      "Id": "d0e71bedfca2493c82d870e2ef060a33",
+      "Inputs": [
+        {
+          "Id": "3d723cb4b8a1430c8a8514eac7691b67",
+          "Name": "string",
+          "Description": "String to split up\n\nstring",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "edad6ace169d4263bde84ed3bba02c56",
+          "Name": "separator0",
+          "Description": "Strings that, if present, determine the end and start of a split.\n\nstring[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "750da4be5a2a4902960af32e2a93d648",
+          "Name": "strings",
+          "Description": "List of strings made from the input string",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Auto",
+      "Description": "Divides a single string into a list of strings, with divisions determined by the given separator strings.\n\nString.Split (string: string, separators: string[]): string[]"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.CodeBlockNodeModel, DynamoCore",
+      "NodeType": "CodeBlockNode",
+      "Code": "\"-\";",
+      "Id": "aa40fbeae1614f09aeb679d2afbfa2c6",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "9848216fd03e489dbb327be421d7c829",
+          "Name": "",
+          "Description": "Value of expression at line 1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Allows for DesignScript code to be authored directly"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "NodeType": "FunctionNode",
+      "FunctionSignature": "DSCore.List.FirstItem@var[]..[]",
+      "Id": "5dc6ec0a52984024920d22882a37f5ae",
+      "Inputs": [
+        {
+          "Id": "be2d14d5f1e84a03a46153d89b0a9719",
+          "Name": "list",
+          "Description": "List to get the first item from.\n\nvar[]..[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "5fb003fb674c4f969f1ac23e75a113b7",
+          "Name": "item",
+          "Description": "First item in the list.",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Auto",
+      "Description": "Returns the first item in a list.\n\nList.FirstItem (list: var[]..[]): var[]..[]"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSVarArgFunction, DynamoCore",
+      "FunctionSignature": "DSCore.List.Join@var[]..[]",
+      "FunctionType": "VariableArgument",
+      "NodeType": "FunctionNode",
+      "Id": "c8f413958977457f827f29ea75a24a89",
+      "Inputs": [
+        {
+          "Id": "7ec4913ca1d84694bbb466b37342bda8",
+          "Name": "list0",
+          "Description": "Lists to join into one.\n\nvar[]..[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "c64e68c770884a3cbd094c491346e272",
+          "Name": "list1",
+          "Description": "var[]..[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "eaba63cb0f1e4573a6e7dad424ed8a53",
+          "Name": "list2",
+          "Description": "var[]..[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "b426b105587d4680a780b593cb1017f8",
+          "Name": "list",
+          "Description": "Joined list.",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Concatenates all given lists into a single list.\n\nList.Join (lists: var[]..[]): var[]..[]"
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Watch, CoreNodeModels",
+      "NodeType": "ExtensionNode",
+      "Id": "103db1361d624058a0c65c7d743fda83",
+      "Inputs": [
+        {
+          "Id": "ad24babe69c346698ed1e7f43193aa72",
+          "Name": "",
+          "Description": "Node to show output from",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "aaa2699830fe4cf996d1d86a94b26a85",
+          "Name": "",
+          "Description": "Node output",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Visualize the node's output"
+    }
+  ],
+  "Connectors": [
+    {
+      "Start": "b7e2d82cb83744deb0cdf159c689c6b0",
+      "End": "f0b7bc94a5f344c2b3c4ea3d1bf23797",
+      "Id": "afd34ff315f14b97a173f2e22dd4011f"
+    },
+    {
+      "Start": "b7e2d82cb83744deb0cdf159c689c6b0",
+      "End": "478fb5bf80114ef590ea9e52ebb43fb6",
+      "Id": "a544d06b2e8e4bb988e0e26592073506"
+    },
+    {
+      "Start": "b7e2d82cb83744deb0cdf159c689c6b0",
+      "End": "c29b0626b29845ebbb36abf43d4e8722",
+      "Id": "ce4bafb0ea514f4e98464d3ae6b58904"
+    },
+    {
+      "Start": "b769caf090f1490c872afa83873ceba3",
+      "End": "f647a880ccf4405b9dfe95acbe7ad9a4",
+      "Id": "fc43f46b8fd0462eb2dce421e2f25ece"
+    },
+    {
+      "Start": "9dd77aae7b8d49ddbf128ad07114b921",
+      "End": "876c34bdc9f54e8482088edcd4c65c92",
+      "Id": "246f3ea760c841a594ac786a8f92fdac"
+    },
+    {
+      "Start": "bba42ffe905e466e8ab254c79fe3df86",
+      "End": "ad24babe69c346698ed1e7f43193aa72",
+      "Id": "78e8f81ffd7e44c5bfd100cdb069ded2"
+    },
+    {
+      "Start": "bdd303f0da10477b9e0c70693aaf8acd",
+      "End": "4d8f2bad038241f2b3b15393f8180bc3",
+      "Id": "6a3d68c8deb34485b9bbdf1553e2e6f7"
+    },
+    {
+      "Start": "cc90cc24e3854a0badcbd7cb01d1e45b",
+      "End": "1c52afcb5389499aa1960d065f30dd66",
+      "Id": "630a30f780294c7ea94f37082c707942"
+    },
+    {
+      "Start": "51ec1ce500624768abc8f628924e79d7",
+      "End": "7722e54f15c24554b2bd4f87e85ecbaf",
+      "Id": "e309fd70c2424790bc815b88ec5651d8"
+    },
+    {
+      "Start": "53cdb9e590164006b203baac335c1b34",
+      "End": "016fc2acd23d49eabb58588e39ed47e3",
+      "Id": "0168dca4df784b4ca394e8964842df5e"
+    },
+    {
+      "Start": "4c231a973aac4c6ea87cb3f2946a5b36",
+      "End": "68a5c8240c284105a4c8c7779fdd43b2",
+      "Id": "7f7e569533b444c19821839a1d1ad192"
+    },
+    {
+      "Start": "47b3ab202c89463082b134482d43886f",
+      "End": "a5de5c7eb95544bb921f503d7c5f847d",
+      "Id": "2065fb7d149e4984ae41711116a062b4"
+    },
+    {
+      "Start": "47b3ab202c89463082b134482d43886f",
+      "End": "100537681e824e7ebfd227a5928a316d",
+      "Id": "6dbd054195fa4e5698dfdb434e1e8522"
+    },
+    {
+      "Start": "8a5587da1e814b0082115ec96618c16e",
+      "End": "7b7e4beedf6d4b1fb03232e031b69254",
+      "Id": "9aec774602b04a0e9b8e6b07d7c04ba5"
+    },
+    {
+      "Start": "8901e8233b754c378153a2d35a88ad7c",
+      "End": "11d25d9e57a4489e979d093a4ae07b11",
+      "Id": "a7a5dad64f334bd3b1bfc10767efcf28"
+    },
+    {
+      "Start": "700b06ced36e42239c53782370a4f356",
+      "End": "c630f4bd4e754219984a1c55e79f02c3",
+      "Id": "ca55c7a868794e0aa069bb162fd4a3f4"
+    },
+    {
+      "Start": "700b06ced36e42239c53782370a4f356",
+      "End": "0f1a01757c7b4bb38ea8274090180847",
+      "Id": "7eca8b32df814b5cb661358ffb002ff2"
+    },
+    {
+      "Start": "22ad684b854e44a79030e07be27d9302",
+      "End": "d344b612298b45ec8a8f6aacf415f664",
+      "Id": "9b1b7879b3db4a88a57085b70c8cf171"
+    },
+    {
+      "Start": "b4867482916f46c381e73c792d9fd81d",
+      "End": "fe88f7c269e246b6a7ba4b79effa2f7e",
+      "Id": "3c9830c3ecdc410e86a50c62c93d8d2b"
+    },
+    {
+      "Start": "b4867482916f46c381e73c792d9fd81d",
+      "End": "05830e92a1254e4da64ea8c476975308",
+      "Id": "3839a0ecec554a72b39e627ea3238dd1"
+    },
+    {
+      "Start": "e22cd73342ae44adb392f6fe6fe531e9",
+      "End": "eaba63cb0f1e4573a6e7dad424ed8a53",
+      "Id": "17a0b7cd9b584b1ba85da2689a232b10"
+    },
+    {
+      "Start": "505e9cecb9844fa790592ca4cd7fa562",
+      "End": "18d21758a2f64ce4bb5cb762ada32037",
+      "Id": "b09687467a97477293d59e541caa40bf"
+    },
+    {
+      "Start": "eddf789f609142d88166187555014658",
+      "End": "be5f52a1bd9a4262801a5985b8058f71",
+      "Id": "dd60598a5e784597b9bfa251148acdaf"
+    },
+    {
+      "Start": "c01a79cc723b4bf392ab37ca37780b38",
+      "End": "0b8724f61d2e4be6ab8d8a30f3dfe9ab",
+      "Id": "3e7a8d785ee849b19597e62e1c857139"
+    },
+    {
+      "Start": "502458b004a545a5940592e0f90239c3",
+      "End": "b46f0456bb404fc996c111ca2b57253b",
+      "Id": "a5cf9a4d34e142e4b3b3fdf7e691e5e4"
+    },
+    {
+      "Start": "8e103f74946c4a9087a21bb3830b72de",
+      "End": "3d723cb4b8a1430c8a8514eac7691b67",
+      "Id": "d04f4a5fd84f4358866f7d1e394047fd"
+    },
+    {
+      "Start": "8e103f74946c4a9087a21bb3830b72de",
+      "End": "7ec4913ca1d84694bbb466b37342bda8",
+      "Id": "cefc90a862c34407bb7eca42a935443d"
+    },
+    {
+      "Start": "750da4be5a2a4902960af32e2a93d648",
+      "End": "be2d14d5f1e84a03a46153d89b0a9719",
+      "Id": "076b135765ef417db7d9dacd9770c128"
+    },
+    {
+      "Start": "9848216fd03e489dbb327be421d7c829",
+      "End": "edad6ace169d4263bde84ed3bba02c56",
+      "Id": "714aa903ec3c41658bbfa32fe430d421"
+    },
+    {
+      "Start": "5fb003fb674c4f969f1ac23e75a113b7",
+      "End": "c64e68c770884a3cbd094c491346e272",
+      "Id": "708a7ac2b3b946c4a527ec9345f27159"
+    },
+    {
+      "Start": "b426b105587d4680a780b593cb1017f8",
+      "End": "99ae8375b5c640d6a5152dcca09d7ffd",
+      "Id": "4f65797cad734ff28b0d0d76fa8074fa"
+    }
+  ],
+  "Dependencies": [],
+  "NodeLibraryDependencies": [],
+  "Thumbnail": "",
+  "GraphDocumentationURL": null,
+  "ExtensionWorkspaceData": [
+    {
+      "ExtensionGuid": "28992e1d-abb9-417f-8b1b-05e053bee670",
+      "Name": "Properties",
+      "Version": "2.12",
+      "Data": {}
+    },
+    {
+      "ExtensionGuid": "DFBD9CC0-DB40-457A-939E-8C8555555A9D",
+      "Name": "Generative Design",
+      "Version": "1.10",
+      "Data": {}
+    }
+  ],
+  "Author": "",
+  "Linting": {
+    "activeLinter": "None",
+    "activeLinterId": "7b75fb44-43fd-4631-a878-29f4d5d8399a",
+    "warningCount": 0,
+    "errorCount": 0
+  },
+  "Bindings": [],
+  "View": {
+    "Dynamo": {
+      "ScaleFactor": 1.0,
+      "HasRunWithoutCrash": true,
+      "IsVisibleInDynamoLibrary": true,
+      "Version": "2.12.0.5650",
+      "RunType": "Manual",
+      "RunPeriod": "1000"
+    },
+    "Camera": {
+      "Name": "Background Preview",
+      "EyeX": -17.0,
+      "EyeY": 24.0,
+      "EyeZ": 50.0,
+      "LookX": 12.0,
+      "LookY": -13.0,
+      "LookZ": -58.0,
+      "UpX": 0.0,
+      "UpY": 1.0,
+      "UpZ": 0.0
+    },
+    "NodeViews": [
+      {
+        "ShowGeometry": true,
+        "Name": "Select Model Element",
+        "Id": "8369dcb045e640c38fa71263d5e13b35",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": -85.175334438589744,
+        "Y": 202.95147050064645
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Element.GetParameterValueByName",
+        "Id": "c3582f723b5e4a3a82968d91fdf48536",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 1688.5827932421334,
+        "Y": 199.09376023379889
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Code Block",
+        "Id": "f477b14bc0ab4e799fa8b03020f6e0b4",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 1485.8137362580983,
+        "Y": 297.16998816994067
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Python Script",
+        "Id": "7aa60df417774c83a1155b7c79e77678",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 2797.5820643966085,
+        "Y": 110.77407075704673
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Element.GetParameterValueByName",
+        "Id": "ccf39de68fd749129f6bd707829644fb",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 773.9897315190874,
+        "Y": -256.22126866841984
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Code Block",
+        "Id": "893f3a0e363b42a58baf783947ab4390",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 515.9897315190874,
+        "Y": -288.00793533508647
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Code Block",
+        "Id": "849dc78ac6014bbeb501798e8380bb38",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 773.9897315190874,
+        "Y": -118.00793533508647
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Element.GetParameterValueByName",
+        "Id": "1db652a4b76a4095b737ea0fded6b842",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 1136.9897315190874,
+        "Y": -148.22126866841984
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Level.Elevation",
+        "Id": "9486f7573baf427a82931c512d06ad22",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 1136.9897315190874,
+        "Y": -256.22126866841984
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "+",
+        "Id": "45a752316f3d45cf9a8bf0b6b6621956",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 1499.9897315190874,
+        "Y": -215.22126866841984
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "List.LastItem",
+        "Id": "775b5844dbbf4b65aea3222538faae20",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 1744.9897315190874,
+        "Y": -269.22126866841984
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "List.FirstItem",
+        "Id": "c32fb6d53f7f4520ab5b367c99b7f316",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 1744.9897315190874,
+        "Y": -161.22126866841984
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Code Block",
+        "Id": "e5cf4c924d1d44ac81432857afd4d3cd",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 515.9897315190874,
+        "Y": -136.00793533508647
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "-",
+        "Id": "6c2111118a11402783962f125c2bd71b",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 2007.9897315190874,
+        "Y": -228.22126866841984
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Element.ElementType",
+        "Id": "1dce38102670476dac3f8a8e8f802d5a",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 486.94909198974892,
+        "Y": 549.68169005219409
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Element.GetParameterValueByName",
+        "Id": "61557db81bf747db96734f34b82ec6b9",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 2060.9490919897489,
+        "Y": 688.46835671886049
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Code Block",
+        "Id": "c4ac33f928b0414c9f382c37a1d9ecd5",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 1730.9490919897491,
+        "Y": 761.46835671886026
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Element.Name",
+        "Id": "836aa83161e6463f8e0291ff95ec2f31",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 834.94909198974915,
+        "Y": 549.68169005219409
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "String.Split",
+        "Id": "12d434872914419f8cd5384b0757358b",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 1137.9490919897491,
+        "Y": 588.57502338552729
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Code Block",
+        "Id": "5f99322cb3984ca1bc985c964749d5a8",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 834.94909198974915,
+        "Y": 657.68169005219409
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "List.LastItem",
+        "Id": "154d373ab0c7437588614db046f04c00",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 1467.9490919897491,
+        "Y": 588.57502338552706
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "String.Split",
+        "Id": "d0e71bedfca2493c82d870e2ef060a33",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 1730.9490919897491,
+        "Y": 627.46835671886026
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Code Block",
+        "Id": "aa40fbeae1614f09aeb679d2afbfa2c6",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 1467.9490919897491,
+        "Y": 696.57502338552706
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "List.FirstItem",
+        "Id": "5dc6ec0a52984024920d22882a37f5ae",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 2060.9490919897489,
+        "Y": 579.46835671886
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "List.Join",
+        "Id": "c8f413958977457f827f29ea75a24a89",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 2423.9490919897494,
+        "Y": 553.46835671886
+      },
+      {
+        "ShowGeometry": true,
+        "Name": "Watch",
+        "Id": "103db1361d624058a0c65c7d743fda83",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "X": 3047.4466426425356,
+        "Y": -37.409376806518139
+      }
+    ],
+    "Annotations": [
+      {
+        "Id": "78fe64eb52894187a8bb986730de209f",
+        "Title": "기둥 length 추출",
+        "Nodes": [
+          "ccf39de68fd749129f6bd707829644fb",
+          "893f3a0e363b42a58baf783947ab4390",
+          "849dc78ac6014bbeb501798e8380bb38",
+          "1db652a4b76a4095b737ea0fded6b842",
+          "9486f7573baf427a82931c512d06ad22",
+          "45a752316f3d45cf9a8bf0b6b6621956",
+          "775b5844dbbf4b65aea3222538faae20",
+          "c32fb6d53f7f4520ab5b367c99b7f316",
+          "e5cf4c924d1d44ac81432857afd4d3cd",
+          "6c2111118a11402783962f125c2bd71b"
+        ],
+        "Left": 505.9897315190874,
+        "Top": -341.00793533508647,
+        "Width": 1687.0,
+        "Height": 360.0,
+        "FontSize": 36.0,
+        "InitialTop": -288.00793533508647,
+        "InitialHeight": 648.83272664880064,
+        "TextblockHeight": 43.0,
+        "Background": "#FFC1D676"
+      },
+      {
+        "Id": "8293ca768ad3497f85afb3432cf2133a",
+        "Title": "요구 축력, 요구 모멘트 추출\r\n(추후 매트릭스 해석법으로 구현 예정)",
+        "Nodes": [
+          "c3582f723b5e4a3a82968d91fdf48536",
+          "f477b14bc0ab4e799fa8b03020f6e0b4"
+        ],
+        "Left": 1475.8137362580983,
+        "Top": 59.093760233798889,
+        "Width": 485.76905698403516,
+        "Height": 393.07622793614178,
+        "FontSize": 36.0,
+        "InitialTop": 199.09376023379889,
+        "InitialHeight": 283.07622793614178,
+        "TextblockHeight": 130.0,
+        "Background": "#FFC1D676"
+      },
+      {
+        "Id": "21f0ae235b1d47bd93bcd5e548bad3c4",
+        "Title": "Section Inform 추출",
+        "Nodes": [
+          "61557db81bf747db96734f34b82ec6b9",
+          "c4ac33f928b0414c9f382c37a1d9ecd5",
+          "836aa83161e6463f8e0291ff95ec2f31",
+          "12d434872914419f8cd5384b0757358b",
+          "5f99322cb3984ca1bc985c964749d5a8",
+          "154d373ab0c7437588614db046f04c00",
+          "d0e71bedfca2493c82d870e2ef060a33",
+          "aa40fbeae1614f09aeb679d2afbfa2c6",
+          "5dc6ec0a52984024920d22882a37f5ae",
+          "c8f413958977457f827f29ea75a24a89",
+          "1dce38102670476dac3f8a8e8f802d5a"
+        ],
+        "Left": 476.94909198974892,
+        "Top": 496.68169005219409,
+        "Width": 2067.0000000000005,
+        "Height": 454.78666666666618,
+        "FontSize": 36.0,
+        "InitialTop": 549.68169005219409,
+        "InitialHeight": 701.57307447178619,
+        "TextblockHeight": 43.0,
+        "Background": "#FFC1D676"
+      }
+    ],
+    "X": -3721.5157488944042,
+    "Y": 191.02004676232534,
+    "Zoom": 1.3726128425351654
+  }
+}
