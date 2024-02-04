@@ -109,11 +109,12 @@ class Nodes:
 
 
 class ElasticSolver:
-    def __init__(self): 
+    def __init__(self,Load):
+        self.Load = Load
         # 아래 리스트의 값은 각자 클래스명으로 활용 가능. ex) nodes_list_from_class[1].x
         self.nodes_list_from_class = Nodes.get_nodes_list()
         self.elements_list_from_class = Elements2D.get_elements_list()
-        self.DOF_all = [];
+        self.DOF_all = []
         for i in range(0, len(self.nodes_list_from_class)):
             self.DOF_all = self.DOF_all + self.nodes_list_from_class[i].DOF
         self.DOF_all.sort()
@@ -182,14 +183,14 @@ class ElasticSolver:
         
         force_free = np.zeros(len(DOF_free))
         for i in range(0,len(force_free)):
-            force_free[i] = Load.p_matrix[DOF_free[i]-1]
+            force_free[i] = self.Load.p_matrix[DOF_free[i]-1]
 
         force_boundary = np.zeros(len(BDOF))
         for i in range(0,len(BDOF)):
-            force_boundary[i] = Load.p_matrix[BDOF[i]-1]
+            force_boundary[i] = self.Load.p_matrix[BDOF[i]-1]
 
 
-        disp_free = force_free @ np.linalg.inv(Solve2.free_stiffness) 
+        disp_free = force_free @ np.linalg.inv(self.free_stiffness) 
         print( disp_free ) 
 
         self.structure_displacement = disp_free # 자유 node의 displacement 만 저장
@@ -199,7 +200,7 @@ class ElasticSolver:
             disp[DOF_free[i]-1] = disp_free[i]
 
         print("disp",disp)
-        force = np.round(Solve2.total_matrix @ disp,2)
+        force = np.round(self.total_matrix @ disp,2)
         print( "all force", force)
 
         
@@ -218,7 +219,7 @@ class ElasticSolver:
 
 class DefineLoad:
     def __init__(self): 
-        self.DOF_all = []
+        self.DOF_all = [];
         for i in range(0, len(Nodes.nodes_list)):
             self.DOF_all = self.DOF_all + Nodes.nodes_list[i].DOF
         self.DOF_all.sort()
@@ -238,108 +239,3 @@ class DefineLoad:
 
         print("P : ", self.p_matrix)
         pass
-
-
-
-
-#########################running test###################################
-#Set node coordination. 
-print("ex 14.1")
-n1 = Nodes(3,4)
-n2 = Nodes(0,0)
-n3 = Nodes(3,0)
-#set element tag 
-E1 = Elements2D(n2, n3)
-E2 = Elements2D(n2, n1)
-#define element properties 
-E1.Truss2D(1,1)
-E2.Truss2D(1,1)
-
-
-# print(E1.nodes)
-# print(E1.x1, E1.y1,   E1.x2, E1.y2)
-print("length E1", E1.length)
-print("length E2", E2.length)
-
-print("k_E1= \n",E1.k)
-print("k_E2= \n",E2.k)
-
-#Node 선언시 자동으로 3개의 자유도를가지게 됨. 아래와 같이 수동으로 자유도 설정하여 예제 비교. 
-n1.DefineDOF([5,6])
-n2.DefineDOF([1,2])
-n3.DefineDOF([3,4])
-
-
-
-
-Solve = ElasticSolver()
-
-
-print(Nodes.boundary_DOF) 
-n1.fix(1,1,0) # x, y 방향 고정 Mz = 0 초기값
-n3.fix(1,1,0)
-print("boundary DOFs", Nodes.boundary_DOF)
-
-
-
-
-
-grobal_K = Solve.Build_Matrix(2)
-Solve.ReduceMatrix()
-
-
-
-############frame example#######################
-Elements2D.elements_list=[] # 위에서 한 예제의 메모리 비우기
-Nodes.nodes_list = []
-Nodes.boundary_DOF = []
-print("\nex 16.1")
-
-n1 = Nodes(0,0)
-n2 = Nodes(20*12,0)
-n3 = Nodes(20*12,-20*12)
-
-#set element tag 
-E1 = Elements2D(n1, n2)
-E2 = Elements2D(n2, n3)
-#define element properties 
-
-
-E1.Frame2D(10,500,29000)
-E2.Frame2D(10,500,29000)
-print("length E1", E1.length)
-print("length E2", E2.length)
-
-print("k_E1= \n",E1.k)
-print("k_E2= \n",E2.k)
-
-
-
-
-#예제와 비교를 위한 정의로, 알고리즘화 해야함. 아래 for문 안쪽에서 정의하면 될거같음. 
-# x y Mz
-n1.DefineDOF([4,6,5])
-n2.DefineDOF([1,2,3])
-n3.DefineDOF([7,8,9])
-
-n1.fix(0,1,0)
-n3.fix(1,1,1)
-
-
-Load = DefineLoad()
-Load.JointLoad("n2",5,0,0)
-
-
-
-
-Solve2 = ElasticSolver()
-
-grobal_K = Solve2.Build_Matrix(3)
-
-
-Solve2.ReduceMatrix()
-Solve2.SolveStructure()
-
-
-
-
